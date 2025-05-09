@@ -1,32 +1,39 @@
 <?php
-require_once 'config.php';
+session_start();
+require_once '../config.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
-    $email = trim($_POST['email']);
     $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
 
-    // Cek apakah username sudah ada
-    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+    // Ambil data user berdasarkan username
+    $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
-    $stmt->store_result();
+    $result = $stmt->get_result();
 
-    // Hash password
-    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+    // Cek apakah user ditemukan
+    if ($result->num_rows === 1) {
+        $user = $result->fetch_assoc();
 
-    // Insert data
-    $stmt = $conn->prepare("SELECT users (username, email, password, role) VALUES (?, ?, ?, 'user')");
-    $stmt->bind_param("sss", $username, $email, $password_hash);
+        // Verifikasi password
+        if (password_verify($password, $user['password'])) {
+            // Login berhasil
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
 
-    if ($stmt->execute()) {
-        // Register berhasil
-        header("Location: ../login.php?success=1");
-        exit();
+            // Arahkan ke halaman dashboard (buat dashboard.php kalau belum ada)
+            header("Location: ../dashboard.php");
+            exit();
+        } else {
+            $_SESSION['error'] = "Password salah.";
+            header("Location: ../login.php");
+            exit();
+        }
     } else {
-        // Register gagal
-        header("Location: ../register.php?error=" . urlencode("Gagal mendaftar. Coba lagi."));
+        $_SESSION['error'] = "Username tidak ditemukan.";
+        header("Location: ../login.php");
         exit();
     }
 }
