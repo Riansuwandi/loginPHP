@@ -1,40 +1,26 @@
 <?php
 session_start();
-require_once '../config.php';
+require_once 'config.php';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = trim($_POST['username']);
-    $password = $_POST['password'];
+$username = $_POST['username'];
+$password = $_POST['password'];
 
-    // Ambil data user berdasarkan username
-    $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
+// Fetch user by username
+$stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+$stmt->execute([$username]);
+$user = $stmt->fetch();
 
-    // Cek apakah user ditemukan
-    if ($result->num_rows === 1) {
-        $user = $result->fetch_assoc();
+if ($user && password_verify($password, $user['password'])) {
+    // Login successful, set session
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['role'] = $user['role'];
 
-        // Verifikasi password
-        if (password_verify($password, $user['password'])) {
-            // Login berhasil
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
-
-            // Arahkan ke halaman dashboard (buat dashboard.php kalau belum ada)
-            header("Location: ../dashboard.php");
-            exit();
-        } else {
-            $_SESSION['error'] = "Password salah.";
-            header("Location: ../login.php");
-            exit();
-        }
-    } else {
-        $_SESSION['error'] = "Username tidak ditemukan.";
-        header("Location: ../login.php");
-        exit();
-    }
+    header("Location: ../dashboard.php"); // Redirect to protected area
+    exit;
+} else {
+    $error = "Username atau password salah.";
+    header("Location: ../login.php?error=" . urlencode($error));
+    exit;
 }
 ?>
