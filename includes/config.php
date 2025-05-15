@@ -1,7 +1,7 @@
 <?php
 $host = 'localhost';
-$db = 'rianganteng';
-$user = 'root';
+$database = 'rianganteng';
+$username = 'root';
 $pass = ''; // default for Laragon
 
 // Membuat koneksi
