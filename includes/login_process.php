@@ -6,9 +6,10 @@ $username = $_POST['username'];
 $password = $_POST['password'];
 
 // Fetch user by username
-$stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
-$stmt->execute([$username]);
-$user = $stmt->fetch();
+    $stmt = $conn->prepare("SELECT password, email, role FROM users WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $stmt->store_result();
 
 if ($user && password_verify($password, $user['password'])) {
     // Login successful, set session
