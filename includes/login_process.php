@@ -2,26 +2,47 @@
 session_start();
 require_once 'config.php';
 
-$username = $_POST['username'];
-$password = $_POST['password'];
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
 
-// Fetch user by username
     $stmt = $conn->prepare("SELECT password, email, role FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $stmt->store_result();
 
-if ($user && password_verify($password, $user['password'])) {
-    // Login successful, set session
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['username'] = $user['username'];
-    $_SESSION['role'] = $user['role'];
+    if ($stmt->num_rows > 0) {
+        $stmt->bind_result($db_pwd, $db_email, $db_role);
+        $stmt->fetch();
 
-    header("Location: ../dashboard.php"); // Redirect to protected area
-    exit;
+        // buat perilaku ketika login berhasil
+        if (password_verify($password, $db_pwd)) {
+            $_SESSION['username'] = $username;
+            $_SESSION['email'] = $db_email;
+            $_SESSION['role'] = $db_role;
+            $stmt->close();
+            header("Location: ../dashboard.php"); 
+            exit();
+
+        // buat perilaku ketika login gagal
+        // buat perilaku ketika salah username atau password
+        // buat perilaku ketika password salah
+        } else {
+            $stmt->close();
+            header("Location: ../login.php?error=password");
+            exit();
+        }
+    // buat perilaku ketika login gagal
+    // buat perilaku ketika username tidak ditemukan
+    } else {
+        $stmt->close();
+        header("Location: ../login.php?error=username");
+        exit();
+    }
+
+// buat perilaku ketika login gagal karena salah method
 } else {
-    $error = "Username atau password salah.";
-    header("Location: ../login.php?error=" . urlencode($error));
-    exit;
+    header("Location: ../login.php?error=invalid_request");
+    exit();
 }
 ?>
