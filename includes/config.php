@@ -2,7 +2,7 @@
 $host = 'localhost';
 $database = 'rianganteng';
 $username = 'root';
-$pass = ''; // default for Laragon
+$password = ''; // default for Laragon
 
 // Membuat koneksi
 $conn = mysqli_connect($host, $username, $password, $database);
