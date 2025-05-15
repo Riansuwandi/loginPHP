@@ -1,48 +1,53 @@
 <?php
 session_start();
-require_once 'config.php';
+
+// Disable error reporting in production
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(0);
+
+require_once 'config.php'; // koneksi ke database, misalnya via $conn
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+    echo "Form submitted.<br>";
+    $username = $_POST['username'] ?? '';
+    $password = $_POST['password'] ?? '';
 
-    $stmt = $conn->prepare("SELECT password, email, role FROM users WHERE username = ?");
+    echo "Username: $username<br>";
+    echo "Password: $password<br>";
+
+    // Cek apakah username ada di database
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
-    $stmt->store_result();
+    $result = $stmt->get_result();
 
-    if ($stmt->num_rows > 0) {
-        $stmt->bind_result($db_pwd, $db_email, $db_role);
-        $stmt->fetch();
-
-        // buat perilaku ketika login berhasil
-        if (password_verify($password, $db_pwd)) {
-            $_SESSION['username'] = $username;
-            $_SESSION['email'] = $db_email;
-            $_SESSION['role'] = $db_role;
-            $stmt->close();
-            header("Location: ../dashboard.php"); 
-            exit();
-
-        // buat perilaku ketika login gagal
-        // buat perilaku ketika salah username atau password
-        // buat perilaku ketika password salah
-        } else {
-            $stmt->close();
-            header("Location: ../login.php?error=password");
-            exit();
-        }
-    // buat perilaku ketika login gagal
     // buat perilaku ketika username tidak ditemukan
-    } else {
-        $stmt->close();
-        header("Location: ../login.php?error=username");
+    if ($result->num_rows == 0) {
+        $_SESSION['error'] = "Username tidak ditemukan.";
+        header("Location: ../login.php");
         exit();
     }
 
-// buat perilaku ketika login gagal karena salah method
-} else {
-    header("Location: ../login.php?error=invalid_request");
+    $user = $result->fetch_assoc();
+
+    // buat perilaku ketika password salah
+    if (!password_verify($password, $user['password'])) {
+        $_SESSION['error'] = "Password salah.";
+        header("Location: ../login.php");
+        exit();
+    }
+
+    // buat perilaku ketika login berhasil
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['username'] = $user['username'];
+    $_SESSION['role'] = $user['role'];
+    header("Location: ../dashboard.php");
+    exit();
+
+    // buat perilaku ketika login gagal (fallback umum jika semua gagal)
+    $_SESSION['error'] = "Login gagal. Silakan coba lagi.";
+    header("Location: ../login.php");
     exit();
 }
 ?>
