@@ -1,52 +1,64 @@
 <?php
+session_start();
 require_once 'config.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
-    $email = $_POST['email'];
+    $username = trim($_POST['username'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
 
-    $checkUsernameStmt = $conn->prepare("SELECT username FROM users WHERE username = ?");
-    $checkUsernameStmt->bind_param("s", $username);
-    $checkUsernameStmt->execute();
-    $checkUsernameStmt->store_result();
-
-    // buat perilaku ketika username sudah ada
-    if ($checkUsernameStmt->num_rows > 0) {
-        $checkUsernameStmt->close(); 
-        header("Location: ../register.php?error=username_exists");
+    // Validasi kosong
+    if ($username === '' || $email === '' || $password === '' || $confirm_password === '') {
+        $_SESSION['error'] = "Semua kolom wajib diisi.";
+        header("Location: ../register.php");
         exit();
     }
 
-    // buat perilaku ketika password tidak sama
+    // Validasi format email
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['error'] = "Format email tidak valid.";
+        header("Location: ../register.php");
+        exit();
+    }
+
+    // Cek password cocok
     if ($password !== $confirm_password) {
-        $checkUsernameStmt->close(); 
-        header("Location: ../register.php?error=password_mismatch");
+        $_SESSION['error'] = "Password dan konfirmasi tidak cocok.";
+        header("Location: ../register.php");
         exit();
     }
 
-    $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+    // Cek apakah username sudah dipakai
+    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+    $stmt->bind_param("ss", $username, $email);
+    $stmt->execute();
+    $stmt->store_result();
+    
+    if ($stmt->num_rows > 0) {
+        $_SESSION['error'] = "Username atau email sudah digunakan.";
+        header("Location: ../register.php");
+        exit();
+    }
 
-    $stmt = $conn->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
-    $stmt->bind_param("sss", $username, $email, $hashed_password);
+    // Hash password
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $default_role = 'user';
 
-    // buat perilaku ketika register berhasil
+    // Simpan ke database
+    $stmt = $conn->prepare("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("ssss", $username, $email, $hashed_password, $default_role);
+
     if ($stmt->execute()) {
-        $stmt->close();
-        header("Location: ../login.php?register=success");
+        header("Location: ../login.php?success=1");
         exit();
-
-    // buat perilaku ketika register gagal
     } else {
-        $stmt->close();
-        header("Location: ../register.php?error=register_failed");
+        $_SESSION['error'] = "Gagal mendaftarkan pengguna.";
+        header("Location: ../register.php");
         exit();
     }
-
-// Jika method bukan POST
-} else {
-    header("Location: ../register.php?error=invalid_request");
-    exit();
 }
-?>
+
+$_SESSION['error'] = "Akses tidak sah.";
+header("Location: ../register.php");
+exit();
