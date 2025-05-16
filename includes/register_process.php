@@ -8,13 +8,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
 
-    // Validasi kosong
-    if ($username === '' || $email === '' || $password === '' || $confirm_password === '') {
-        $_SESSION['error'] = "Semua kolom wajib diisi.";
-        header("Location: ../register.php");
-        exit();
-    }
-
     // Validasi format email
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $_SESSION['error'] = "Format email tidak valid.";
@@ -29,7 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
-    // Cek apakah username sudah dipakai
+    // Cek apakah username dan email sudah dipakai
     $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
     $stmt->bind_param("ss", $username, $email);
     $stmt->execute();
